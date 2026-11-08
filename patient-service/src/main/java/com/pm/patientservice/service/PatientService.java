@@ -46,16 +46,41 @@ public class PatientService {
         return PatientMapper.toDto(patient);
     }
 
-    public PatientResponseDTO updatePatient(UUID id, PatientRequestDto patientRequestDto) {
-        if (patientRepository.existsByEmail(patientRequestDto.getEmail())) {
-            throw new EmailAlreadyExistsException("A patient with this email already exists:" + patientRequestDto.getEmail());
-        }
-        Patient patient = patientRepository.findById(id).orElseThrow(() -> new PatientNotFoundException("Patient not found with ID:" + id));
+    public PatientResponseDTO updatePatient(
+            UUID id,
+            PatientRequestDto patientReqDto) {
 
-        patient.setName(patientRequestDto.getName());
-        patient.setEmail(patientRequestDto.getEmail());
-        patient.setAddress(patientRequestDto.getAddress());
-        patient.setDateOfBirth(LocalDateTime.parse(patientRequestDto.getDateOfBirth()));
+        Patient patient = patientRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Patient not found"));
+
+        if (patientReqDto.getName() != null) {
+            patient.setName(patientReqDto.getName());
+        }
+
+        if (patientReqDto.getEmail() != null) {
+            patient.setEmail(patientReqDto.getEmail());
+        }
+
+        if (patientReqDto.getAddress() != null) {
+            patient.setAddress(patientReqDto.getAddress());
+        }
+
+        if (patientReqDto.getDateOfBirth() != null) {
+            patient.setDateOfBirth(
+                    LocalDate.parse(
+                            patientReqDto.getDateOfBirth()
+                    ).atStartOfDay()
+            );
+        }
+
+        if (patientReqDto.getRegisteredDate() != null) {
+            patient.setRegisteredDate(
+                    LocalDate.parse(
+                            patientReqDto.getRegisteredDate()
+                    ).atStartOfDay()
+            );
+        }
 
         Patient updatedPatient = patientRepository.save(patient);
 
