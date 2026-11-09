@@ -9,9 +9,12 @@ import com.pm.patientservice.dtos.PatientRequestDto;
 import com.pm.patientservice.dtos.PatientResponseDTO;
 import com.pm.patientservice.exception.EmailAlreadyExistsException;
 import com.pm.patientservice.exception.PatientNotFoundException;
+import com.pm.patientservice.grpc.BillingServiceGrpcClient;
 import com.pm.patientservice.mapper.PatientMapper;
 import com.pm.patientservice.model.Patient;
 import com.pm.patientservice.repository.PatientRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -23,10 +26,15 @@ import java.util.UUID;
 @Service
 public class PatientService {
 
+    private static final Logger log = LoggerFactory.getLogger(PatientService.class);
     private final PatientRepository patientRepository;
 
-    public PatientService(PatientRepository patientRepository) {
+    private final BillingServiceGrpcClient billingServiceGrpcClient;
+
+    public PatientService(PatientRepository patientRepository,
+                          BillingServiceGrpcClient billingServiceGrpcClient) {
         this.patientRepository = patientRepository;
+        this.billingServiceGrpcClient = billingServiceGrpcClient;
     }
 
     public List<PatientResponseDTO> getPatients() {
@@ -38,11 +46,26 @@ public class PatientService {
 
     public PatientResponseDTO createPatient(PatientRequestDto patientRequestDto) {
 
+
+        log.info("STEP 1: Starting patient creation");
+
         if (patientRepository.existsByEmail(patientRequestDto.getEmail())) {
             throw new EmailAlreadyExistsException("A patient with this email already exists:" + patientRequestDto.getEmail());
         }
 
         Patient patient = patientRepository.save(PatientMapper.toModel(patientRequestDto));
+
+        log.info("STEP 2: Patient saved successfully: {}", patient.getId());
+
+        log.info("STEP 3: Calling billing-service via gRPC");
+
+
+        billingServiceGrpcClient.createBillingAccount(patient.getId().toString(),
+                patient.getName(),patient.getEmail());
+
+        log.info("STEP 4: Billing gRPC call completed");
+
+
         return PatientMapper.toDto(patient);
     }
 
